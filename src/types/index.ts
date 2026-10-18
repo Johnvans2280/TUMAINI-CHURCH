@@ -45,3 +45,16 @@ export interface Announcement {
   is_pinned: boolean;
   created_at: string;
 }
+
+export interface SiteSettings {
+  id?: number;
+  church_name: string | null;
+  tagline: string | null;
+  about: string | null;
+  phone: string | null;
+  email: string | null;
+  location: string | null;
+  service_times: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

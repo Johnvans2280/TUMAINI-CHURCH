@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { churchService } from '../lib/churchService';
 import { Announcement } from '../types';
+import { useToast } from '../context/ToastContext';
 import { Pin, Calendar, Search, Bell } from 'lucide-react';
 
 export const Updates: React.FC = () => {
+  const { error: toastError } = useToast();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,16 +14,17 @@ export const Updates: React.FC = () => {
   useEffect(() => {
     async function loadAnnouncements() {
       try {
+        setLoading(true);
         const data = await churchService.getAnnouncements();
         setAnnouncements(data);
-      } catch (err) {
-        console.error('Failed to load announcements:', err);
+      } catch (err: any) {
+        toastError(err.message || 'Failed to load announcements');
       } finally {
         setLoading(false);
       }
     }
     loadAnnouncements();
-  }, []);
+  }, [toastError]);
 
   const filteredAnnouncements = announcements.filter((ann) => {
     const matchesSearch =

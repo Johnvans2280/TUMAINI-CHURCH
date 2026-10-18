@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { churchConfig } from '../config/church';
+import { useSiteSettings } from '../context/SettingsContext';
+import { useToast } from '../context/ToastContext';
 import { churchService } from '../lib/churchService';
 import { Hymn, DailyHymn, Announcement } from '../types';
 import HymnDetailModal from '../components/HymnDetailModal';
@@ -19,6 +20,9 @@ import {
 } from 'lucide-react';
 
 export const Home: React.FC = () => {
+  const { settings } = useSiteSettings();
+  const { error: toastError } = useToast();
+
   const [todayHymn, setTodayHymn] = useState<Hymn | null>(null);
   const [dailyHymnRecord, setDailyHymnRecord] = useState<DailyHymn | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -28,6 +32,7 @@ export const Home: React.FC = () => {
   useEffect(() => {
     async function loadHomeData() {
       try {
+        setLoading(true);
         const [{ dailyHymn, hymn }, allAnnouncements] = await Promise.all([
           churchService.getTodayHymn(),
           churchService.getAnnouncements()
@@ -35,14 +40,14 @@ export const Home: React.FC = () => {
         setDailyHymnRecord(dailyHymn);
         setTodayHymn(hymn);
         setAnnouncements(allAnnouncements.slice(0, 3));
-      } catch (err) {
-        console.error('Error loading home data:', err);
+      } catch (err: any) {
+        toastError(err.message || 'Failed to load home page content');
       } finally {
         setLoading(false);
       }
     }
     loadHomeData();
-  }, []);
+  }, [toastError]);
 
   const todayFormatted = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
@@ -50,6 +55,13 @@ export const Home: React.FC = () => {
     month: 'long',
     day: 'numeric'
   }).format(new Date());
+
+  const churchName = settings?.church_name || 'Tumaini Church';
+  const tagline = settings?.tagline;
+  const aboutText = settings?.about;
+  const phone = settings?.phone;
+  const location = settings?.location;
+  const serviceTimes = settings?.service_times;
 
   return (
     <div className="space-y-16 sm:space-y-24 pb-16">
@@ -59,18 +71,22 @@ export const Home: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             {/* Left Column: Hero Text */}
             <div className="lg:col-span-7 space-y-6">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-[#C8963E] bg-[#C8963E]/10 px-3 py-1.5 rounded-full border border-[#C8963E]/20">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{churchConfig.tagline}</span>
-              </div>
+              {tagline && (
+                <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase text-[#C8963E] bg-[#C8963E]/10 px-3 py-1.5 rounded-full border border-[#C8963E]/20">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{tagline}</span>
+                </div>
+              )}
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold font-serif-church text-[#1F2A44] dark:text-white tracking-tight leading-[1.15]">
-                {churchConfig.name}
+                {churchName}
               </h1>
 
-              <p className="text-lg sm:text-xl text-[#5B6270] dark:text-slate-300 leading-relaxed max-w-2xl font-light">
-                {churchConfig.welcomeMessage}
-              </p>
+              {aboutText && (
+                <p className="text-lg sm:text-xl text-[#5B6270] dark:text-slate-300 leading-relaxed max-w-2xl font-light whitespace-pre-line">
+                  {aboutText}
+                </p>
+              )}
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-4 pt-2">
@@ -91,17 +107,25 @@ export const Home: React.FC = () => {
                 </a>
               </div>
 
-              {/* Quick Info Strip */}
-              <div className="pt-4 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center gap-6 text-xs text-[#5B6270] dark:text-slate-400">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-[#C8963E]" />
-                  <span>Sundays: 8:30 AM & 10:45 AM</span>
+              {/* Quick Info Strip (only if location or phone exists) */}
+              {(location || phone) && (
+                <div className="pt-4 border-t border-slate-200/60 dark:border-slate-800 flex flex-wrap items-center gap-6 text-xs text-[#5B6270] dark:text-slate-400">
+                  {location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-[#C8963E]" />
+                      <span>{location}</span>
+                    </div>
+                  )}
+                  {phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-[#C8963E]" />
+                      <a href={`tel:${phone}`} className="hover:underline">
+                        {phone}
+                      </a>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#C8963E]" />
-                  <span>{churchConfig.contact.address}</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Right Column: Hero Sanctuary Visual */}
@@ -109,7 +133,7 @@ export const Home: React.FC = () => {
               <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200/80 dark:border-slate-800 group">
                 <img
                   src="/src/assets/images/church_sanctuary_warm_1792311944301.jpg"
-                  alt="Tumaini Church sanctuary warm interior"
+                  alt="Church sanctuary warm interior"
                   className="w-full h-80 sm:h-96 object-cover transform group-hover:scale-105 transition-transform duration-700"
                   referrerPolicy="no-referrer"
                 />
@@ -222,7 +246,7 @@ export const Home: React.FC = () => {
               No hymn scheduled for today
             </h3>
             <p className="text-sm text-[#5B6270] dark:text-slate-400 max-w-md mx-auto">
-              The church secretary or pastor has not yet scheduled a daily hymn for today. You can still explore and sing from our rich hymnal collection!
+              No daily hymn has been assigned for today yet. You can still browse and search our hymn archive!
             </p>
             <div className="pt-2">
               <Link
@@ -320,68 +344,50 @@ export const Home: React.FC = () => {
         )}
       </section>
 
-      {/* 4. SERVICE TIMES SECTION */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-[#1F2A44] dark:bg-[#151D2C] text-white rounded-3xl p-8 sm:p-12 shadow-xl border border-slate-800">
-          <div className="max-w-2xl mx-auto text-center space-y-3 mb-10">
-            <span className="text-xs uppercase tracking-widest text-[#DFC07A] font-semibold">
-              Join Us For Worship
-            </span>
-            <h2 className="text-3xl sm:text-4xl font-bold font-serif-church">
-              Worship Times & Gatherings
-            </h2>
-            <p className="text-sm text-slate-300">
-              We gather weekly to praise God, study His Word, and fellowship in warm brotherly love.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {churchConfig.serviceTimes.map((service, index) => (
-              <div
-                key={index}
-                className="bg-[#273554] dark:bg-[#1C273B] rounded-2xl p-6 border border-slate-700/60 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center gap-2 text-[#DFC07A] text-xs font-semibold uppercase tracking-wider mb-2">
-                    <Clock className="w-4 h-4" />
-                    <span>{service.day}</span>
-                  </div>
-                  <h3 className="text-lg font-bold font-serif-church text-white mb-1">
-                    {service.title}
-                  </h3>
-                  <p className="text-base font-semibold text-[#DFC07A] mb-3">
-                    {service.time}
-                  </p>
-                  <p className="text-xs text-slate-300 leading-relaxed font-light">
-                    {service.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-10 pt-6 border-t border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-300">
-            <p>
-              Need transportation assistance or have special accommodation needs? Please contact our hospitality desk.
-            </p>
-            <div className="flex items-center gap-4">
-              <a
-                href={`tel:${churchConfig.contact.phone}`}
-                className="text-[#DFC07A] hover:underline flex items-center gap-1.5 font-medium"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span>{churchConfig.contact.phone}</span>
-              </a>
-              <Link
-                to="/about"
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors"
-              >
-                Directions & Map
-              </Link>
+      {/* 4. SERVICE TIMES SECTION (Hidden if service_times is empty) */}
+      {serviceTimes && serviceTimes.trim() && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-[#1F2A44] dark:bg-[#151D2C] text-white rounded-3xl p-8 sm:p-12 shadow-xl border border-slate-800">
+            <div className="max-w-2xl mx-auto text-center space-y-3 mb-10">
+              <span className="text-xs uppercase tracking-widest text-[#DFC07A] font-semibold">
+                Join Us For Worship
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-bold font-serif-church">
+                Worship Times & Gatherings
+              </h2>
             </div>
+
+            <div className="bg-[#273554] dark:bg-[#1C273B] rounded-2xl p-6 sm:p-8 border border-slate-700/60 max-w-3xl mx-auto">
+              <div className="flex items-center gap-2 text-[#DFC07A] text-xs font-semibold uppercase tracking-wider mb-4">
+                <Clock className="w-4 h-4" />
+                <span>Service Schedule</span>
+              </div>
+              <div className="text-base text-slate-100 whitespace-pre-line leading-relaxed font-light">
+                {serviceTimes}
+              </div>
+            </div>
+
+            {(phone || location) && (
+              <div className="mt-8 pt-6 border-t border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-300">
+                <p>
+                  {location ? `Join us at ${location}.` : 'You are warmly welcome to worship with us.'}
+                </p>
+                {phone && (
+                  <div className="flex items-center gap-4">
+                    <a
+                      href={`tel:${phone}`}
+                      className="text-[#DFC07A] hover:underline flex items-center gap-1.5 font-medium"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>{phone}</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Hymn Modal View */}
       {selectedHymn && (

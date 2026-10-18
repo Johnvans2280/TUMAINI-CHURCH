@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { churchService } from '../../lib/churchService';
-import { churchConfig } from '../../config/church';
 import { Member } from '../../types';
 import { useToast } from '../../context/ToastContext';
+
+const churchMinistries = [
+  'Choir & Praise',
+  'Ushering & Hospitality',
+  'Youth Fellowship',
+  'Sunday School',
+  'Women of Hope',
+  'Men\'s Fellowship',
+  'Outreach & Missions',
+  'Intercessory Prayer'
+];
 import {
   Users,
   Search,
@@ -266,7 +276,7 @@ export const AdminMembers: React.FC = () => {
               aria-label="Filter by ministry"
             >
               <option value="all">All Ministries</option>
-              {churchConfig.ministries.map((min) => (
+              {churchMinistries.map((min) => (
                 <option key={min} value={min}>
                   {min}
                 </option>
@@ -575,7 +585,7 @@ export const AdminMembers: React.FC = () => {
                     className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-[#FAF7F2]/50 dark:bg-[#1E273A] text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#C8963E]"
                   >
                     <option value="">Select Ministry (Optional)</option>
-                    {churchConfig.ministries.map((min) => (
+                    {churchMinistries.map((min) => (
                       <option key={min} value={min}>
                         {min}
                       </option>

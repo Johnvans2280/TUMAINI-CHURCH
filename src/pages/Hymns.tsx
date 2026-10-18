@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { churchService } from '../lib/churchService';
 import { Hymn, DailyHymn } from '../types';
 import HymnDetailModal from '../components/HymnDetailModal';
-import { Search, BookOpen, Calendar, Filter, Sparkles, ChevronRight, Music } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import { Search, BookOpen, Calendar, Filter, Sparkles, ChevronRight, Music, Bookmark } from 'lucide-react';
 
 export const Hymns: React.FC = () => {
+  const { error: toastError } = useToast();
   const [todayHymn, setTodayHymn] = useState<Hymn | null>(null);
   const [todayDate, setTodayDate] = useState<string>('');
   const [pastDailyHymns, setPastDailyHymns] = useState<DailyHymn[]>([]);
@@ -23,6 +25,7 @@ export const Hymns: React.FC = () => {
   useEffect(() => {
     async function loadData() {
       try {
+        setLoading(true);
         const [{ dailyHymn, hymn }, pastDaily, hymns] = await Promise.all([
           churchService.getTodayHymn(),
           churchService.getPastDailyHymns(),
@@ -32,14 +35,14 @@ export const Hymns: React.FC = () => {
         setTodayDate(dailyHymn?.hymn_date || '');
         setPastDailyHymns(pastDaily);
         setAllHymns(hymns);
-      } catch (err) {
-        console.error('Failed to load hymns:', err);
+      } catch (err: any) {
+        toastError(err.message || 'Failed to load hymns');
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, []);
+  }, [toastError]);
 
   // Filter daily hymns archive
   const filteredDailyHymns = pastDailyHymns.filter((dh) => {
@@ -94,7 +97,7 @@ export const Hymns: React.FC = () => {
       </div>
 
       {/* TODAY'S HYMN CARD FEATURED AT TOP */}
-      {todayHymn && (
+      {todayHymn ? (
         <section aria-labelledby="today-heading">
           <div className="bg-gradient-to-br from-[#1F2A44] to-[#141C2E] text-white rounded-3xl p-6 sm:p-10 shadow-lg relative overflow-hidden">
             <div className="relative z-10">
@@ -136,7 +139,17 @@ export const Hymns: React.FC = () => {
             </div>
           </div>
         </section>
-      )}
+      ) : !loading ? (
+        <div className="bg-white dark:bg-[#1A2335] rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 dark:border-slate-800 text-center space-y-2">
+          <Bookmark className="w-8 h-8 text-[#C8963E] mx-auto mb-1" />
+          <h2 className="text-xl font-bold font-serif-church text-[#1F2A44] dark:text-white">
+            No hymn scheduled for today
+          </h2>
+          <p className="text-xs sm:text-sm text-[#5B6270] dark:text-slate-400 max-w-md mx-auto">
+            You can still browse, search, and sing from our hymnal collection below.
+          </p>
+        </div>
+      ) : null}
 
       {/* SEARCH AND FILTER TOOLBAR */}
       <div className="space-y-4">

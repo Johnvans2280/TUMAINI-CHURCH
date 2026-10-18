@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { churchService } from '../../lib/churchService';
+import { churchService, getLocalTodayDateString } from '../../lib/churchService';
 import { Hymn, DailyHymn } from '../../types';
 import { useToast } from '../../context/ToastContext';
-import { getLocalTodayDateString } from '../../lib/demoData';
 import {
   BookOpen,
   Calendar,

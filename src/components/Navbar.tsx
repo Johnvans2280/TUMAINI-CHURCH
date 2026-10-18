@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { churchConfig } from '../config/church';
+import { useSiteSettings } from '../context/SettingsContext';
 import { Menu, X, Sun, Moon, LogIn, LogOut, Shield } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, isAdminOrSecretary, signOut, role } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { settings } = useSiteSettings();
   const navigate = useNavigate();
+
+  const churchName = settings?.church_name || 'Tumaini Church';
 
   const handleSignOut = async () => {
     await signOut();
@@ -39,9 +42,9 @@ export const Navbar: React.FC = () => {
           <Link
             to="/"
             className="flex items-center gap-2 text-xl font-bold tracking-tight text-[#1F2A44] dark:text-white font-serif-church whitespace-nowrap shrink-0 hover:opacity-90 transition-opacity"
-            aria-label="Tumaini Church Homepage"
+            aria-label={`${churchName} Homepage`}
           >
-            <span>{churchConfig.name}</span>
+            <span>{churchName}</span>
           </Link>
 
           {/* Zone 2: Navigation Links */}

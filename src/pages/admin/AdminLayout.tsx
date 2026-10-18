@@ -1,20 +1,21 @@
 import React from 'react';
 import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { churchConfig } from '../../config/church';
+import { useSiteSettings } from '../../context/SettingsContext';
 import {
   LayoutDashboard,
   Users,
   BookOpen,
   Bell,
+  Settings as SettingsIcon,
   LogOut,
   ExternalLink,
-  ShieldCheck,
-  AlertTriangle
+  ShieldCheck
 } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
-  const { user, profile, role, signOut, isConfigured } = useAuth();
+  const { user, profile, role, signOut } = useAuth();
+  const { settings } = useSiteSettings();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -26,7 +27,8 @@ export const AdminLayout: React.FC = () => {
     { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
     { to: '/admin/members', label: 'Members', icon: Users, end: false },
     { to: '/admin/hymns', label: 'Hymns', icon: BookOpen, end: false },
-    { to: '/admin/announcements', label: 'Announcements', icon: Bell, end: false }
+    { to: '/admin/announcements', label: 'Announcements', icon: Bell, end: false },
+    { to: '/admin/settings', label: 'Settings', icon: SettingsIcon, end: false }
   ];
 
   const sidebarLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -37,11 +39,13 @@ export const AdminLayout: React.FC = () => {
     }`;
 
   const mobileTabClass = ({ isActive }: { isActive: boolean }) =>
-    `flex flex-col items-center justify-center py-2 px-1 text-[11px] font-medium transition-colors min-h-[48px] ${
+    `flex flex-col items-center justify-center py-2 px-0.5 text-[10px] font-medium transition-colors min-h-[48px] ${
       isActive
         ? 'text-[#C8963E] font-semibold'
         : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
     }`;
+
+  const churchName = settings?.church_name || 'Church Portal';
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] dark:bg-[#111724] text-[#1F2A44] dark:text-white flex flex-col md:flex-row">
@@ -51,8 +55,8 @@ export const AdminLayout: React.FC = () => {
           {/* Brand & Portal Label */}
           <div>
             <Link to="/" className="block">
-              <span className="font-serif-church font-bold text-xl text-[#1F2A44] dark:text-white">
-                {churchConfig.name}
+              <span className="font-serif-church font-bold text-xl text-[#1F2A44] dark:text-white line-clamp-1">
+                {churchName}
               </span>
               <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#C8963E] font-semibold uppercase tracking-wider">
                 <ShieldCheck className="w-3.5 h-3.5" />
@@ -85,10 +89,10 @@ export const AdminLayout: React.FC = () => {
           <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                {profile?.full_name || user?.email || 'Church Staff'}
+                {profile?.full_name || user?.email || 'Staff'}
               </span>
               <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#C8963E]/20 text-[#C8963E] uppercase">
-                {role || 'Staff'}
+                {role || 'staff'}
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
@@ -117,19 +121,6 @@ export const AdminLayout: React.FC = () => {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col min-w-0 pb-20 md:pb-8">
-        {/* Banner if Supabase environment variables are missing */}
-        {!isConfigured && (
-          <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 px-4 py-2.5 text-xs text-amber-900 dark:text-amber-200 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>
-                <strong>Demo Storage Mode:</strong> Connect your Supabase keys (<code>VITE_SUPABASE_URL</code> & <code>VITE_SUPABASE_ANON_KEY</code>) in <code>.env</code> to persist live data to your cloud database.
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Content Outlet */}
         <div className="flex-1 p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
@@ -137,7 +128,7 @@ export const AdminLayout: React.FC = () => {
 
       {/* MOBILE BOTTOM TAB BAR */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#161F30]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 grid grid-cols-4 items-center pb-safe"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#161F30]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 grid grid-cols-5 items-center pb-safe"
         aria-label="Mobile admin tab bar"
       >
         {navItems.map((item) => {
@@ -150,7 +141,7 @@ export const AdminLayout: React.FC = () => {
               className={mobileTabClass}
             >
               <Icon className="w-5 h-5 mb-1" />
-              <span>{item.label}</span>
+              <span className="truncate max-w-[56px] text-center">{item.label}</span>
             </NavLink>
           );
         })}

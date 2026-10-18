@@ -3,22 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Check if credentials are validly provided
-export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-  supabaseAnonKey &&
-  supabaseUrl.startsWith('https://') &&
-  !supabaseUrl.includes('YOUR_') &&
-  !supabaseUrl.includes('placeholder')
-);
+export const missingEnvVars = [];
+if (!supabaseUrl) missingEnvVars.push('VITE_SUPABASE_URL');
+if (!supabaseAnonKey) missingEnvVars.push('VITE_SUPABASE_ANON_KEY');
 
-// Fallback dummy URL so createClient does not crash if env vars are unset
-const fallbackUrl = 'https://tumaini-placeholder.supabase.co';
-const fallbackKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy';
+export const isSupabaseConfigured = missingEnvVars.length === 0;
 
+// Initialize official client with the real anon key and URL
 export const supabase = createClient(
-  isSupabaseConfigured ? supabaseUrl : fallbackUrl,
-  isSupabaseConfigured ? supabaseAnonKey : fallbackKey,
+  supabaseUrl || 'https://unconfigured.supabase.co',
+  supabaseAnonKey || 'unconfigured',
   {
     auth: {
       persistSession: true,

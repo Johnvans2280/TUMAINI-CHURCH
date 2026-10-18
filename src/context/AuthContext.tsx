@@ -10,16 +10,12 @@ interface AuthContextType {
   role: UserRole | null;
   loading: boolean;
   isAdminOrSecretary: boolean;
-  isConfigured: boolean;
   signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
-  loginAsDemoAdmin: () => void;
-  loginAsDemoSecretary: () => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const DEMO_AUTH_KEY = 'tumaini_demo_auth_profile';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -28,7 +24,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState<boolean>(true);
 
   // Fetch profile from 'profiles' table in Supabase
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -37,13 +33,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .maybeSingle();
 
       if (error) {
-        console.warn('Error fetching user profile:', error.message);
+        console.error('Error fetching user profile:', error.message);
         return null;
       }
       return data as Profile;
     } catch (err) {
-      console.warn('Network error fetching profile:', err);
+      console.error('Network error fetching profile:', err);
       return null;
+    }
+  };
+
+  const refreshProfile = async () => {
+    if (user?.id) {
+      const prof = await fetchProfile(user.id);
+      setProfile(prof);
     }
   };
 
@@ -51,73 +54,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let mounted = true;
 
     async function initAuth() {
-      // First check for active Supabase session
-      if (isSupabaseConfigured) {
-        try {
-          const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-          if (error) {
-            console.warn('Get session error:', error.message);
-          }
+      if (!isSupabaseConfigured) {
+        if (mounted) setLoading(false);
+        return;
+      }
 
-          if (mounted && currentSession) {
-            setSession(currentSession);
-            setUser(currentSession.user);
-            const userProfile = await fetchProfile(currentSession.user.id);
-            if (mounted && userProfile) {
-              setProfile(userProfile);
-            }
-          }
-        } catch (err) {
-          console.warn('Supabase auth initialization error:', err);
+      try {
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Get session error:', error.message);
         }
-      }
 
-      // Check if demo auth was stored
-      if (mounted) {
-        try {
-          const demoSaved = localStorage.getItem(DEMO_AUTH_KEY);
-          if (demoSaved) {
-            const parsed = JSON.parse(demoSaved);
-            setProfile(parsed);
-            // mock user
-            setUser({
-              id: parsed.id,
-              email: parsed.email || 'admin@tumainichurch.org',
-              app_metadata: {},
-              user_metadata: { full_name: parsed.full_name },
-              aud: 'authenticated',
-              created_at: new Date().toISOString()
-            } as User);
+        if (mounted && currentSession) {
+          setSession(currentSession);
+          setUser(currentSession.user);
+          const userProfile = await fetchProfile(currentSession.user.id);
+          if (mounted) {
+            setProfile(userProfile);
           }
-        } catch {
-          // ignore
         }
-        setLoading(false);
+      } catch (err) {
+        console.error('Supabase auth initialization error:', err);
+      } finally {
+        if (mounted) setLoading(false);
       }
 
-      // Supabase auth state change listener
-      if (isSupabaseConfigured) {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-          if (!mounted) return;
-          setSession(newSession);
-          setUser(newSession?.user || null);
+      // Supabase auth state listener
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+        if (!mounted) return;
+        setSession(newSession);
+        setUser(newSession?.user || null);
 
-          if (newSession?.user) {
-            const userProf = await fetchProfile(newSession.user.id);
-            if (mounted) setProfile(userProf);
-          } else {
-            // Check if demo user is active before clearing profile
-            const demoSaved = localStorage.getItem(DEMO_AUTH_KEY);
-            if (!demoSaved && mounted) {
-              setProfile(null);
-            }
-          }
-        });
+        if (newSession?.user) {
+          const userProf = await fetchProfile(newSession.user.id);
+          if (mounted) setProfile(userProf);
+        } else {
+          if (mounted) setProfile(null);
+        }
+        if (mounted) setLoading(false);
+      });
 
-        return () => {
-          subscription.unsubscribe();
-        };
-      }
+      return () => {
+        subscription.unsubscribe();
+      };
     }
 
     initAuth();
@@ -128,31 +107,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   const signInWithPassword = async (email: string, password: string) => {
-    if (!isSupabaseConfigured) {
-      // If user is testing without Supabase configured yet:
-      if (password.length >= 6) {
-        const demoRole: UserRole = email.toLowerCase().includes('secretary') ? 'secretary' : 'admin';
-        const demoProf: Profile = {
-          id: 'demo-user-' + Date.now(),
-          full_name: demoRole === 'admin' ? 'Pastor Samuel Baraka (Admin)' : 'Mary Ochieng (Secretary)',
-          role: demoRole
-        };
-        localStorage.setItem(DEMO_AUTH_KEY, JSON.stringify(demoProf));
-        setProfile(demoProf);
-        setUser({
-          id: demoProf.id,
-          email,
-          app_metadata: {},
-          user_metadata: { full_name: demoProf.full_name },
-          aud: 'authenticated',
-          created_at: new Date().toISOString()
-        } as User);
-        return { error: null };
-      } else {
-        return { error: new Error('Password must be at least 6 characters') };
-      }
-    }
-
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -177,53 +131,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const signOut = async () => {
-    localStorage.removeItem(DEMO_AUTH_KEY);
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.auth.signOut();
-      } catch (err) {
-        console.warn('Sign out error:', err);
-      }
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Sign out error:', err);
     }
     setUser(null);
     setSession(null);
     setProfile(null);
-  };
-
-  const loginAsDemoAdmin = () => {
-    const demoProf: Profile = {
-      id: 'demo-admin-id',
-      full_name: 'Reverend Samuel (Admin)',
-      role: 'admin'
-    };
-    localStorage.setItem(DEMO_AUTH_KEY, JSON.stringify(demoProf));
-    setProfile(demoProf);
-    setUser({
-      id: demoProf.id,
-      email: 'admin@tumainichurch.org',
-      app_metadata: {},
-      user_metadata: { full_name: demoProf.full_name },
-      aud: 'authenticated',
-      created_at: new Date().toISOString()
-    } as User);
-  };
-
-  const loginAsDemoSecretary = () => {
-    const demoProf: Profile = {
-      id: 'demo-sec-id',
-      full_name: 'Grace Mwangi (Secretary)',
-      role: 'secretary'
-    };
-    localStorage.setItem(DEMO_AUTH_KEY, JSON.stringify(demoProf));
-    setProfile(demoProf);
-    setUser({
-      id: demoProf.id,
-      email: 'secretary@tumainichurch.org',
-      app_metadata: {},
-      user_metadata: { full_name: demoProf.full_name },
-      aud: 'authenticated',
-      created_at: new Date().toISOString()
-    } as User);
   };
 
   const role = profile?.role || null;
@@ -238,11 +153,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         role,
         loading,
         isAdminOrSecretary,
-        isConfigured: isSupabaseConfigured,
         signInWithPassword,
         signOut,
-        loginAsDemoAdmin,
-        loginAsDemoSecretary
+        refreshProfile
       }}
     >
       {children}
