@@ -1,0 +1,6 @@
+{
+  "name": "Tumaini Church",
+  "description": "A community of hope - Daily hymns, church announcements, and church administration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
